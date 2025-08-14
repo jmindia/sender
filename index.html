@@ -1,65 +1,106 @@
-<!doctype html>
-<html>
+<!-- ===========================
+File: sender.html
+Purpose: Cast sender web app to send 5 tickers to your Chromecast (Vizio TV with Chromecast built-in)
+Host this file on any static site host. Replace CAST_APP_ID below with your own Custom Receiver App ID from the Google Cast SDK Console.
+=========================== -->
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cast Stocks Sender</title>
-  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  <title>Cast: Stock Dashboard Sender</title>
+  <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial; max-width: 720px; margin: 40px auto; padding: 0 16px; }
-    input, select, button { font-size: 16px; }
-    .row { margin: 12px 0; }
-    button { padding: 10px 14px; border-radius: 12px; border: 1px solid #ddd; cursor: pointer; }
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22d3ee; }
+    html,body { height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:linear-gradient(180deg,#0b1022,#0f172a); color:var(--text); }
+    .wrap { max-width: 840px; margin: 0 auto; padding: 32px 16px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+    h1 { font-size: 28px; margin: 0 0 12px; letter-spacing: 0.3px; }
+    p.sub { color: var(--muted); margin: 0 0 20px; }
+    .grid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    input[type=text] { width:100%; padding:12px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:#0b1220; color:var(--text); font-weight:600; text-transform:uppercase; letter-spacing:1px; text-align:center; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top: 16px; align-items:center; }
+    button { cursor:pointer; border:0; padding:12px 16px; border-radius:14px; font-weight:700; }
+    .primary { background: linear-gradient(90deg, #06b6d4, #22d3ee); color:#001016; }
+    .ghost { background:transparent; border:1px solid rgba(255,255,255,0.16); color:var(--text); }
+    small { color: var(--muted); }
+    .bad { color:#fda4af; }
+    .ok { color:#86efac; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
   </style>
 </head>
 <body>
-  <h1>Cast Stock Board</h1>
-  <div class="row">
-    <label>Up to 5 tickers (comma‑separated):</label>
-    <input id="tickers" value="AAPL,MSFT,NVDA,GOOGL,AMZN" style="width:100%;padding:8px;border-radius:10px;border:1px solid #ddd" />
-  </div>
-  <div class="row">
-    <label>Alpha Vantage API key:</label>
-    <input id="key" placeholder="YOUR_KEY" style="width:60%;padding:8px;border-radius:10px;border:1px solid #ddd" />
-  </div>
-  <div class="row">
-    <label>Interval:</label>
-    <select id="interval">
-      <option value="DAILY" selected>Daily</option>
-      <option value="INTRADAY">Intraday (5m)</option>
-    </select>
-  </div>
-  <div class="row">
-    <button id="cast">Cast / Update TV</button>
+  <div class="wrap">
+    <div class="card">
+      <h1>Chromecast Stock Dashboard — Sender</h1>
+      <p class="sub">Enter 5 tickers. Click <strong>Cast to TV</strong> to launch your receiver and show the dashboard on your Vizio TV.</p>
+      <div class="grid">
+        <input id="t1" type="text" value="AAPL" maxlength="12" />
+        <input id="t2" type="text" value="MSFT" maxlength="12" />
+        <input id="t3" type="text" value="NVDA" maxlength="12" />
+        <input id="t4" type="text" value="GOOGL" maxlength="12" />
+        <input id="t5" type="text" value="AMZN" maxlength="12" />
+      </div>
+      <div class="row">
+        <button id="castBtn" class="primary">🔊 Cast to TV</button>
+        <button id="updateBtn" class="ghost">↻ Update Live</button>
+        <small id="status">Status: <span class="bad">Not connected</span></small>
+      </div>
+      <footer>
+        <div>Cast App ID: <code id="appId">8D54F371</code> (replace in code)</div>
+      </footer>
+    </div>
   </div>
 
   <script>
-    const APP_ID = 'YOUR-CAST-APP-ID'; // ← Replace with your Custom Receiver App ID
-    let session = null;
+    const CAST_APP_ID = 'YOUR_CAST_APP_ID'; // ← replace with your Custom Receiver App ID
+    const NAMESPACE = 'urn:x-cast:ticker.dashboard';
 
-    window['__onGCastApiAvailable'] = function(isAvailable) {
-      if (!isAvailable) return;
-      const context = cast.framework.CastContext.getInstance();
-      context.setOptions({
-        receiverApplicationId: APP_ID,
-        autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED
-      });
-      document.getElementById('cast').addEventListener('click', async () => {
-        const ctx = cast.framework.CastContext.getInstance();
-        if (!session) session = await ctx.requestSession();
-        send();
-      });
-    };
+    const ctx = cast.framework.CastContext.getInstance();
+    ctx.setOptions({
+      receiverApplicationId: CAST_APP_ID,
+      autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+    });
 
-    function send() {
-      if (!session) return;
-      const tickers = document.getElementById('tickers').value.split(',').map(s => s.trim()).filter(Boolean).slice(0,5);
-      const apiKey = document.getElementById('key').value.trim();
-      const interval = document.getElementById('interval').value;
-      const payload = JSON.stringify({ tickers, apiKey, interval });
-      session.sendMessage('urn:x-cast:app.stocks', payload);
+    const castBtn = document.getElementById('castBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const statusEl = document.getElementById('status');
+
+    function getTickers(){
+      return [1,2,3,4,5].map(i => document.getElementById('t'+i).value.trim().toUpperCase()).filter(Boolean);
     }
+
+    function setStatus(txt, ok=false){
+      statusEl.innerHTML = 'Status: ' + (ok ? `<span class="ok">${txt}</span>` : `<span class="bad">${txt}</span>`);
+    }
+
+    async function requestSessionAndSend(){
+      try {
+        const session = await ctx.requestSession();
+        setStatus('Connected to ' + session.getCastDevice().friendlyName, true);
+        sendTickers();
+      } catch(err){
+        console.error(err);
+        setStatus('Not connected');
+        alert('Cast failed. Make sure your TV is on and the receiver app is registered.');
+      }
+    }
+
+    function sendTickers(){
+      const session = ctx.getCurrentSession();
+      if(!session){ setStatus('Not connected'); return; }
+      const message = { tickers: getTickers(), ts: Date.now() };
+      session.sendMessage(NAMESPACE, message).then(() => {
+        setStatus('Updated tickers on TV at ' + new Date().toLocaleTimeString(), true);
+      }).catch(err => {
+        console.error(err);
+        setStatus('Send failed');
+      });
+    }
+
+    castBtn.addEventListener('click', requestSessionAndSend);
+    updateBtn.addEventListener('click', sendTickers);
   </script>
 </body>
 </html>
+
