@@ -47,13 +47,13 @@ Host this file on any static site host. Replace CAST_APP_ID below with your own 
         <small id="status">Status: <span class="bad">Not connected</span></small>
       </div>
       <footer>
-        <div>Cast App ID: <code id="appId">8D54F371</code> (replace in code)</div>
+        <div>Cast App ID: <code id="appId">YOUR_CAST_APP_ID</code> (replace in code)</div>
       </footer>
     </div>
   </div>
 
   <script>
-    const CAST_APP_ID = 'YOUR_CAST_APP_ID'; // ← replace with your Custom Receiver App ID
+    const CAST_APP_ID = '8D54F371'; // ← replace with your Custom Receiver App ID
     const NAMESPACE = 'urn:x-cast:ticker.dashboard';
 
     const ctx = cast.framework.CastContext.getInstance();
